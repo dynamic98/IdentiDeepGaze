@@ -99,14 +99,93 @@ class LoadResultData:
 
     def get_data(self):
         return self.data
+
+
+class LoadSerialData:
+    def __init__(self, path) -> None:
+        data = pd.read_csv(path)
+        # data = data.dropna(axis=0)
+        data = data.sample(frac=1, random_state=5).reset_index(drop=True)
+        self.data = data
+        self.exceptlist = ['participant', 'session']
+
+    def take_y(self, data=pd.DataFrame()):
+        if data.empty:
+            y_data = self.data['participant']
+        else:
+            y_data = data['participant']
+        return y_data
     
+    def take_rawgaze(self, data=pd.DataFrame()):
+        if data.empty:
+            df_2d = self.data.apply(row_to_2d, axis=1)
+        else:
+            df_2d = data.apply(row_to_2d, axis=1)
+        return df_2d
+    
+    def take_pupil(self, data=pd.DataFrame()):
+        def row_to_pupil(row):
+            left_pupil = row[['left_diameter' + str(i) for i in range(1, 85)]].to_numpy()
+            right_pupil = row[['right_diameter' + str(i) for i in range(1, 85)]].to_numpy()
+            together_pupil = row[['together_diameter' + str(i) for i in range(1, 85)]].to_numpy()
+            return np.column_stack((left_pupil, right_pupil, together_pupil))
+        if data.empty:
+            df_pupil = self.data.apply(row_to_pupil, axis=1)
+        else:
+            df_pupil = data.apply(row_to_pupil, axis=1)
+        return df_pupil
+
+    def take_velocity(self, data=pd.DataFrame()):
+        def row_to_velocity(row):
+            velocity = row[['velocity' + str(i) for i in range(1, 84)]].to_numpy()
+            angular = row[['angular' + str(i) for i in range(1, 84)]].to_numpy()
+            return np.column_stack((velocity, angular))
+        if data.empty:
+            df_velocity = self.data.apply(row_to_velocity, axis=1)
+        else:
+            df_velocity = data.apply(row_to_velocity, axis=1)
+        return df_velocity
+    
+    def take_scalar(self, data=pd.DataFrame()):
+        ScalarFeatures = ['rt','path_length','fixation_count','saccade_count']
+        if data.empty:
+            df_scalar = self.data.loc[:,self.data.columns.isin(ScalarFeatures)]
+        else:
+            df_scalar = data.loc[:,self.data.columns.isin(ScalarFeatures)]
+        return df_scalar
+
+    def take_df_by_session(self, session:list):
+        df = self.data[self.data['session'].isin(session)]
+        return df
+
+    def take_individual(self, individual, data=pd.DataFrame()):
+        if data.empty:
+            y_data = self.data['participant'].apply(lambda x: 1 if x==individual else 0)
+        else:
+            y_data = data['participant'].apply(lambda x: 1 if x==individual else 0)
+        return y_data
+
+    def get_data(self):
+        return self.data
+
 def row_to_2d(row):
     x_values = row[['x' + str(i) for i in range(1, 85)]].to_numpy()
     y_values = row[['y' + str(i) for i in range(1, 85)]].to_numpy()
     return np.column_stack((x_values, y_values))
 
 if __name__ == "__main__":
-    path = 'C:\\Users\\scilab\\IdentiGaze\\data\\DayDifference\\Similar_All.csv'
-    myIdentiGaze = LoadResultData(path)
-    print(myIdentiGaze.take_xy2d())
-    print(myIdentiGaze.take_x())
+    # path = 'C:\\Users\\scilab\\IdentiGaze\\data\\DayDifference\\Similar_All.csv'
+    # myIdentiGaze = LoadResultData(path)
+    # print(myIdentiGaze.take_xy2d())
+    # print(myIdentiGaze.take_x())
+
+    path = "data/different_whole_session.csv"
+    myIdentiGaze = LoadSerialData(path)
+    train_dataset = myIdentiGaze.take_df_by_session([1,2,3,4])
+    test_dataset = myIdentiGaze.take_df_by_session([5])
+
+    print(myIdentiGaze.take_rawgaze(train_dataset).shape)
+    print(myIdentiGaze.take_pupil(train_dataset).shape)
+    print(myIdentiGaze.take_velocity(train_dataset).shape)
+    print(myIdentiGaze.take_scalar(train_dataset).shape)
+    print(myIdentiGaze.take_y(train_dataset).shape)

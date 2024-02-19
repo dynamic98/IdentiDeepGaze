@@ -39,12 +39,56 @@ class IdentiGazeDataset(Dataset):
                 'mfcc': mfcc, 'pupil': pupil, 'y': label}
 
 
+class IdentiDeepGazeDataset(Dataset):
+    def __init__(self, path, dataType) -> None:
+        super().__init__()
+        self.loadData = LoadSerialData(path)
+        if dataType == 'train':
+            self.data = self.loadData.take_df_by_session([1,2,3,4]).reset_index(drop=True)
+            # self.data = self.loadSelectiveData.take_df_by_session([1,2,3,4]).reset_index(drop=True)
+        elif dataType == 'test':
+            self.data = self.loadData.take_df_by_session([5]).reset_index(drop=True)
+        
+        self.rawgaze = self.loadData.take_rawgaze(self.data)
+        self.velocity = self.loadData.take_velocity(self.data)
+        self.pupil = self.loadData.take_pupil(self.data)
+        self.scalar = self.loadData.take_scalar(self.data)
+        self.y = self.loadData.take_y(self.data)
+    
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, index):
+        rawgaze = torch.FloatTensor(self.rawgaze.iloc[index])
+        velocity = torch.FloatTensor(self.velocity.iloc[index])
+        pupil = torch.FloatTensor(self.pupil.iloc[index])
+        scalar = torch.FloatTensor(self.scalar.iloc[index])
+        label = self.y.iloc[index]
+        return {'rawgaze':rawgaze, 'velocity':velocity, 'pupil':pupil, 'scalar':scalar, 'y':label}
+    
+
+
+
+
 
 if __name__ == "__main__":
     batch_size = 32
-    path = 'Similar_All.csv'
-    train_vaild_Dataset = IdentiGazeDataset(path, 'train')
-    testDataset = IdentiGazeDataset(path, 'test')
+    # path = 'Similar_All.csv'
+    # train_vaild_Dataset = IdentiGazeDataset(path, 'train')
+    # testDataset = IdentiGazeDataset(path, 'test')
+
+    # train_size = int(len(train_vaild_Dataset)*0.8)
+    # valid_size = len(train_vaild_Dataset) - train_size
+    # train_dataset, valid_dataset = random_split(train_vaild_Dataset, [train_size, valid_size])
+
+    # test_size = len(testDataset)
+    # train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    # valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
+    # test_loader = DataLoader(testDataset, batch_size=batch_size, shuffle=True)
+
+    path = 'data/different_whole_session.csv'
+    train_vaild_Dataset = IdentiDeepGazeDataset(path, 'train')
+    testDataset = IdentiDeepGazeDataset(path, 'test')
 
     train_size = int(len(train_vaild_Dataset)*0.8)
     valid_size = len(train_vaild_Dataset) - train_size
@@ -54,3 +98,9 @@ if __name__ == "__main__":
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     valid_loader = DataLoader(valid_dataset, batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(testDataset, batch_size=batch_size, shuffle=True)
+
+    for batch in train_loader:
+        print(batch['rawgaze'].shape, batch['velocity'].shape, batch['pupil'].shape, batch['scalar'].shape, batch['y'].shape)
+        print(batch['rawgaze'])
+        print(batch['velocity'])
+        break
